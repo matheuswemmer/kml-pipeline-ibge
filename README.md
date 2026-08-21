@@ -15,9 +15,9 @@ Chave de junção de tudo: `CD_SETOR`, string de 15 dígitos.
 | Catálogo de fontes verificado | `config/sources.py` | ✅ 20 URLs, todas 200 |
 | Download idempotente | `scripts/01_download.py` | ✅ funcionando |
 | Dicionário unificado (1.531 vars) | `scripts/02_dicionario.py` | ✅ conferido contra os CSV |
-| Extração + padronização | `scripts/03_*` | ⬜ a fazer |
-| Junção por `CD_SETOR` | `scripts/04_*` | ⬜ a fazer |
-| Export KMZ por município | `scripts/05_*` | ⬜ a fazer |
+| Curadoria (32 indicadores) | `config/indicadores.py` | ✅ validada contra o dicionário |
+| Leitura, junção e export | `scripts/03_exportar_kmz.py` | ✅ Joinville conferido |
+| Rodar os 5.494 municípios | — | ⬜ a fazer |
 
 Inventário completo de variáveis e sua procedência:
 **[docs/inventario_fontes.md](docs/inventario_fontes.md)**.
@@ -71,9 +71,15 @@ O dado bom sobreviveu fora do `ExtendedData`: `<name>` tem o `CD_SETOR` correto
 e `<description>` tem a renda. **Por isso a pipeline reconstrói do zero a partir
 da fonte oficial em vez de corrigir o arquivo derivado.**
 
-Todo export deve passar por validação automática antes de ser publicado:
-`CD_SETOR` com 15 dígitos numéricos, contagem de feições igual à da malha, e
-conferência de tipo por coluna.
+Todo export passa por validação automática antes de ser publicado: o arquivo é
+relido do disco e conferido em contagem de feições, integridade do `CD_SETOR`
+(15 dígitos, sem duplicata) e presença de todas as colunas.
+
+**Joinville serviu de prova.** O KMZ gerado tem os mesmos 1.064 setores do
+arquivo herdado, e os 1.044 valores de renda não suprimidos batem na segunda
+casa decimal com o que estava no `<description>` antigo — confirmando que
+aquele número era o `V06004` (rendimento médio do responsável). Os 10 setores
+que o IBGE suprime por sigilo (`X`) saem nulos, não zero.
 
 ---
 
@@ -141,8 +147,9 @@ selecionados. Setores fora da amostra ficam sem esses dados — a junção deve 
 
 ```bash
 pip install -r requirements.txt
-python scripts/01_download.py --dicionarios --uf RO
-python scripts/01_download.py --tabelas
+python scripts/01_download.py --dicionarios --tabelas --uf SC
+python scripts/02_dicionario.py
+python scripts/03_exportar_kmz.py --uf SC --municipio 4209102 --kml
 ```
 
 Os arquivos caem em `data/raw/` com o nome original do IBGE e são registrados
