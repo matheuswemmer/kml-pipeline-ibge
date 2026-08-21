@@ -14,9 +14,13 @@ Chave de junção de tudo: `CD_SETOR`, string de 15 dígitos.
 |---|---|---|
 | Catálogo de fontes verificado | `config/sources.py` | ✅ 20 URLs, todas 200 |
 | Download idempotente | `scripts/01_download.py` | ✅ funcionando |
-| Extração + padronização | `scripts/02_*`, `03_*` | ⬜ a fazer |
+| Dicionário unificado (1.531 vars) | `scripts/02_dicionario.py` | ✅ conferido contra os CSV |
+| Extração + padronização | `scripts/03_*` | ⬜ a fazer |
 | Junção por `CD_SETOR` | `scripts/04_*` | ⬜ a fazer |
 | Export KMZ por município | `scripts/05_*` | ⬜ a fazer |
+
+Inventário completo de variáveis e sua procedência:
+**[docs/inventario_fontes.md](docs/inventario_fontes.md)**.
 
 ---
 
@@ -93,6 +97,19 @@ subestima o valor real. A coluna derivada deve ser nomeada de forma honesta
 
 Para análise de mercado, `V06006` (mediana) costuma ser mais robusto que a
 média, que é puxada por outliers.
+
+### A coluna-chave tem quatro grafias diferentes
+
+`CD_SETOR`, `CD_setor`, `setor` e `COD_SETOR_M22FINAL`, conforme o arquivo. E a
+caixa do nome da variável também varia (`v0001` em `basico`, `V00001` nos
+demais). Um merge ingênuo por nome de coluna quebra. O dicionário unificado
+guarda a grafia real de cada uma em `coluna_chave_no_csv` e `variavel_no_csv`.
+
+### O mesmo tema aparece em três unidades de medida
+
+Entorno é publicado por domicílio (`V050xx`), por morador (`V052xx`) e por face
+de quadra (`V054xx`) — recortes distintos do mesmo questionário. Escolher um,
+documentar a escolha, e nunca somar entre eles.
 
 ### Entorno: são contagens de domicílios, não percentuais
 
