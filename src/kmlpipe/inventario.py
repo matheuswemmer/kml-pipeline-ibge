@@ -142,3 +142,81 @@ def gerar(dic: pd.DataFrame, headers: dict, tamanhos: dict[str, int]) -> str:
     add("Basta acrescentá-los a `TABELAS` se forem necessários.")
     add("")
     return "\n".join(L)
+
+
+def gerar_curadoria(indicadores, excluidos, indisponiveis, tamanhos) -> str:
+    """docs/indicadores_curados.md — o subconjunto que vai para o KMZ."""
+    L: list[str] = []
+    add = L.append
+
+    usadas = {v for i in indicadores
+              for v in list(i.numerador) + list(i.denominador)}
+    tabelas = sorted({i.tabela for i in indicadores})
+    mb = sum(tamanhos.get(t, 0) for t in tabelas) / 1e6
+
+    add("# Indicadores curados para avaliação imobiliária")
+    add("")
+    add("Gerado por `scripts/02_dicionario.py` a partir de "
+        "`config/indicadores.py`. **Não editar à mão.**")
+    add("")
+    add("**Regra de inclusão:** a variável entra se for reconhecida no mercado "
+        "como fator que valoriza ou deprecia o imóvel.")
+    add("")
+    add(f"Resultado: **{len(indicadores)} indicadores** derivados de "
+        f"**{len(usadas)} variáveis** do IBGE — de 1.531 disponíveis.")
+    add(f"Isso reduz o download de 513 MB para **{mb:.0f} MB** "
+        f"({len(tabelas)} arquivos em vez de 13).")
+    add("")
+    add("Todo percentual declara denominador explícito: contagem bruta de "
+        "domicílios não é comparável entre setores de tamanhos diferentes.")
+    add("")
+
+    grupos: dict[str, list] = {}
+    for ind in indicadores:
+        grupos.setdefault(ind.tabela, []).append(ind)
+
+    SETA = {"valoriza": "▲ valoriza", "deprecia": "▼ deprecia",
+            "contexto": "● contexto"}
+
+    for tabela in tabelas:
+        add(f"## `{tabela}`")
+        add("")
+        add("| Coluna no KMZ | Rótulo | Sentido | Fórmula |")
+        add("|---|---|---|---|")
+        for ind in grupos[tabela]:
+            if ind.tipo in {"valor", "contagem"}:
+                formula = f"`{ind.numerador[0]}`"
+            elif ind.tipo == "derivado":
+                formula = ("`" + "*".join(ind.numerador) + " / "
+                           + "+".join(ind.denominador) + "`")
+            else:
+                num = "+".join(ind.numerador)
+                den = "+".join(ind.denominador)
+                if len(ind.numerador) > 3:
+                    num = f"{ind.numerador[0]}…{ind.numerador[-1]}"
+                if len(ind.denominador) > 3:
+                    den = f"{ind.denominador[0]}…{ind.denominador[-1]}"
+                formula = f"`{num} / {den}`"
+            add(f"| `{ind.nome}` | {ind.rotulo} | {SETA[ind.direcao]} | {formula} |")
+        add("")
+        notas = [i for i in grupos[tabela] if i.nota]
+        if notas:
+            for ind in notas:
+                add(f"- **`{ind.nome}`** — {ind.nota}")
+            add("")
+
+    add("## Excluídos deliberadamente")
+    add("")
+    for chave, motivo in excluidos.items():
+        add(f"**`{chave}`** — {motivo}")
+        add("")
+
+    add("## Não publicados por setor no Censo 2022")
+    add("")
+    add("Fatores que o mercado usaria, mas que a fonte não oferece nesta "
+        "granularidade:")
+    add("")
+    for chave, motivo in indisponiveis.items():
+        add(f"- **{chave}** — {motivo}")
+    add("")
+    return "\n".join(L)

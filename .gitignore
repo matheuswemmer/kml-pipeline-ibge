@@ -5,6 +5,7 @@ logs/
 
 # Artefatos soltos herdados de execuções antigas
 *.kml
+!docs/*.csv
 *.kmz
 *.gpkg
 *.parquet
