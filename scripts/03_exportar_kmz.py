@@ -1,17 +1,18 @@
-"""03 — Gera o KMZ de setores enriquecido com os indicadores curados.
+"""03 — Gera o arquivo de um município só, para conferência pontual.
 
 Uso:
     python scripts/03_exportar_kmz.py --uf SC --municipio 4209102
-    python scripts/03_exportar_kmz.py --uf SC            # UF inteira
+    python scripts/03_exportar_kmz.py --uf SC --municipio 4209102 --kmz
 
-Saída em output/<uf>/<nome>_<codigo>_setores_CD2022.kmz, seguindo a convenção
-de nome do próprio IBGE.
+Para gerar uma UF inteira use scripts/05_gerar_lote.py, que é muito mais
+rápido por preparar a malha uma vez só.
+
+Usa a base nacional (scripts/04_base_nacional.py) quando ela existir; sem ela,
+recai na leitura direta dos CSV, que custa ~20 s por execução.
 """
 
 import argparse
-import re
 import sys
-import unicodedata
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -20,31 +21,40 @@ sys.path.insert(0, str(ROOT / "config"))
 
 import indicadores as ind_cfg  # noqa: E402
 import sources  # noqa: E402
-from kmlpipe import consolidar, exportar, headers, logging_setup, paths  # noqa: E402
+from kmlpipe import (consolidar, exportar, headers,  # noqa: E402
+                     logging_setup, lote, paths)
 
 
-def apelido(texto: str) -> str:
-    """Nome de arquivo no padrão do IBGE: minúsculo, sem acento, com _."""
-    sem_acento = "".join(
-        c for c in unicodedata.normalize("NFD", texto)
-        if unicodedata.category(c) != "Mn"
+def indicadores_do_municipio(prefixo_uf: str, cod_mun: str, log):
+    """Do Parquet quando houver; dos CSV quando não."""
+    if (paths.PROCESSED / lote.PARQUET).exists():
+        base, colunas = lote.carregar_indicadores(prefixo_uf)
+        return base[base.index.str.startswith(cod_mun)], colunas
+
+    log.info("base nacional ausente, lendo dos CSV (mais lento)")
+    cabecalhos = headers.obter(sources.TABELAS)
+    brutos = consolidar.carregar(
+        ind_cfg.INDICADORES, sources.TABELAS, cabecalhos, cod_mun=cod_mun,
     )
-    return re.sub(r"[^a-z0-9]+", "_", sem_acento.lower()).strip("_")
+    calculados = consolidar.calcular(ind_cfg.INDICADORES, brutos)
+    return calculados, list(calculados.columns)
 
 
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--uf", required=True, help="sigla da UF (ex.: SC)")
-    p.add_argument("--municipio", help="código IBGE de 7 dígitos (ex.: 4209102)")
-    p.add_argument("--kml", action="store_true",
-                   help="gerar também .kml puro, além do .kmz")
+    p.add_argument("--municipio", required=True,
+                   help="código IBGE de 7 dígitos (ex.: 4209102)")
+    p.add_argument("--kmz", action="store_true",
+                   help="gerar .kmz em vez de .kml")
     args = p.parse_args()
 
     log = logging_setup.setup("exportar")
     paths.ensure()
 
     sigla = args.uf.upper()
-    if sigla not in sources.UFS.values():
+    codigos = {v: k for k, v in sources.UFS.items()}
+    if sigla not in codigos:
         log.error("UF desconhecida: %s", sigla)
         return 1
 
@@ -54,39 +64,30 @@ def main() -> int:
         return 1
 
     malha = exportar.carregar_malha(gpkg, args.municipio)
+    malha = exportar.reparar_geometrias(malha)
+    malha = exportar.normalizar_malha(malha)
+    malha = exportar.reprojetar(malha)
 
-    cabecalhos = headers.obter(sources.TABELAS)
-    brutos = consolidar.carregar(
-        ind_cfg.INDICADORES, sources.TABELAS, cabecalhos, cod_mun=args.municipio,
+    indicadores, colunas = indicadores_do_municipio(
+        codigos[sigla], args.municipio, log,
     )
-    calculados = consolidar.calcular(ind_cfg.INDICADORES, brutos)
-    colunas = list(calculados.columns)
 
-    dados = exportar.juntar(malha, calculados)
+    destino = lote.caminho_saida(
+        sigla, args.municipio, malha["NM_MUN"].iloc[0],
+        ext=".kmz" if args.kmz else ".kml",
+    )
+    stats = exportar.gerar_municipio(malha, indicadores, destino, colunas)
 
-    if args.municipio:
-        nome = f"{apelido(malha['NM_MUN'].iloc[0])}_{args.municipio}"
-    else:
-        nome = f"{sigla.lower()}_uf"
-    destino = paths.OUTPUT / sigla / f"{nome}_setores_CD2022.kmz"
+    log.info("%s: %d setores, %.2f MB", destino.name,
+             stats["setores"], stats["bytes"] / 1e6)
 
-    exportar.escrever_kmz(dados, destino, colunas)
-    exportar.validar(destino, len(dados), colunas)
-
-    if args.kml:
-        puro = destino.with_suffix(".kml")
-        exportar.escrever_kmz(dados, puro, colunas)
-        exportar.validar(puro, len(dados), colunas)
-
-    # Amostra do resultado, para conferência visual imediata.
-    amostra = dados[["CD_SETOR", "NM_BAIRRO", "renda_resp_mediana",
-                     "pct_via_pavimentada", "pct_arborizacao"]].head(8)
+    dados = exportar.juntar(malha, indicadores)
     print()
-    print(amostra.to_string(index=False))
+    print(dados[["CD_SETOR", "NM_BAIRRO", "renda_resp_mediana",
+                 "pct_via_pavimentada", "pct_arborizacao"]].head(8).to_string(index=False))
     print()
-    preenchimento = dados[colunas].notna().mean().mul(100).round(1)
     print("preenchimento por indicador (%):")
-    print(preenchimento.to_string())
+    print(dados[colunas].notna().mean().mul(100).round(1).to_string())
     return 0
 
 

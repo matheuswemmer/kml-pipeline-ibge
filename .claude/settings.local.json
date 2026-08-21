@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(export PYTHONIOENCODING=utf-8)",
+      "Bash(python scripts/04_base_nacional.py)",
+      "Bash(python -)"
+    ]
+  }
+}
