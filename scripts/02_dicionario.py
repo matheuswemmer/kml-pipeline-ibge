@@ -2,7 +2,9 @@
 
 Saídas:
   data/processed/dicionario_unificado.csv  uma linha por variável
+  docs/variaveis_origem.csv                tabela variável -> origem (versionada)
   docs/inventario_fontes.md                resumo legível, gerado
+  docs/indicadores_curados.md              subconjunto para avaliação imobiliária
 
 Responde a "esta variável vem de qual arquivo?" com procedência verificada.
 O mapeamento variável -> arquivo é derivado de DUAS fontes independentes e
@@ -24,6 +26,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, str(ROOT / "config"))
 
+import indicadores as ind_cfg  # noqa: E402
 import sources  # noqa: E402
 from kmlpipe import headers, inventario, logging_setup, paths  # noqa: E402
 
@@ -180,11 +183,30 @@ def main() -> int:
     log.info("%d variáveis de %d arquivos -> %s",
              len(dic), dic.tabela.nunique(), destino)
 
+    # Tabela enxuta variável -> origem, versionada no repo por ser pequena
+    # e a resposta mais consultada do projeto.
+    tabela = ROOT / "docs" / "variaveis_origem.csv"
+    tabela.parent.mkdir(exist_ok=True)
+    (dic.rename(columns={"tipo": "unidade", "arquivo_csv": "arquivo",
+                         "coluna_chave_no_csv": "coluna_chave"})
+        [["variavel", "variavel_no_csv", "descricao", "tema", "unidade",
+          "tabela", "arquivo", "coluna_chave", "url_origem"]]
+        .to_csv(tabela, index=False, encoding="utf-8"))
+    log.info("tabela variável->origem -> %s", tabela)
+
     doc = ROOT / "docs" / "inventario_fontes.md"
     doc.parent.mkdir(exist_ok=True)
     tamanhos = {k: v["bytes"] for k, v in cabecalhos.items()}
     doc.write_text(inventario.gerar(dic, cabecalhos, tamanhos), encoding="utf-8")
     log.info("inventário -> %s", doc)
+
+    curadoria = ROOT / "docs" / "indicadores_curados.md"
+    curadoria.write_text(
+        inventario.gerar_curadoria(ind_cfg.INDICADORES, ind_cfg.EXCLUIDOS,
+                                   ind_cfg.INDISPONIVEIS, tamanhos),
+        encoding="utf-8")
+    log.info("curadoria (%d indicadores) -> %s",
+             len(ind_cfg.INDICADORES), curadoria)
 
     print()
     print(dic.groupby("tabela", sort=False)
