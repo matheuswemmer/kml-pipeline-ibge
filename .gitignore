@@ -1,0 +1,23 @@
+# Dados brutos e derivados: reproduzíveis via pipeline, nunca versionados
+data/
+output/
+logs/
+
+# Artefatos soltos herdados de execuções antigas
+*.kml
+*.kmz
+*.gpkg
+*.parquet
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+
+# Editores / SO
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini
