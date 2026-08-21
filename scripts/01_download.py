@@ -36,6 +36,43 @@ def baixar_grupo(itens: dict[str, str], destino: Path, log, forcar: bool) -> Non
             log.error("falhou %s: %s", chave, erro)
 
 
+def catalogo_completo() -> dict[Path, str]:
+    """Todo arquivo que a pipeline conhece -> sua URL de origem no IBGE."""
+    mapa: dict[Path, str] = {}
+    for url in sources.DICIONARIOS.values():
+        mapa[paths.DICTS / nome_local(url)] = url
+    for url, _ in sources.TABELAS.values():
+        mapa[paths.RAW / nome_local(url)] = url
+    for codigo, sigla in sources.UFS.items():
+        for url in (sources.malha_gpkg_uf(sigla), sources.malha_kml_uf(codigo, sigla)):
+            mapa[paths.RAW / nome_local(url)] = url
+    mapa[paths.RAW / nome_local(sources.MALHA_GPKG_BR)] = sources.MALHA_GPKG_BR
+    return mapa
+
+
+def verificar_tudo(log) -> int:
+    """Confere por sha256 todo arquivo do catálogo presente em disco."""
+    presentes = {c: u for c, u in catalogo_completo().items() if c.exists()}
+    if not presentes:
+        log.warning("nenhum arquivo do catálogo está em disco")
+        return 0
+
+    total_mb = sum(c.stat().st_size for c in presentes) / 1e6
+    log.info("verificando %d arquivo(s), %.0f MB — rebaixa cada um para comparar",
+             len(presentes), total_mb)
+
+    falhas = 0
+    for caminho, url in sorted(presentes.items()):
+        if not download.verificar(caminho, url):
+            falhas += 1
+
+    if falhas:
+        log.error("%d de %d arquivo(s) NÃO conferem com o IBGE", falhas, len(presentes))
+        return 1
+    log.info("todos os %d arquivos conferem por sha256 com o IBGE", len(presentes))
+    return 0
+
+
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--dicionarios", action="store_true", help="dicionários de variáveis")
@@ -44,11 +81,17 @@ def main() -> int:
     p.add_argument("--malha-br", action="store_true", help="GeoPackage do Brasil (1,5 GB)")
     p.add_argument("--tudo", action="store_true", help="dicionários + tabelas + malha BR")
     p.add_argument("--forcar", action="store_true", help="rebaixar mesmo se já existir")
+    p.add_argument("--verificar", action="store_true",
+                   help="confere por sha256 o que já está em disco contra o IBGE")
     args = p.parse_args()
 
-    if not any([args.dicionarios, args.tabelas, args.uf, args.malha_br, args.tudo]):
+    if not any([args.dicionarios, args.tabelas, args.uf, args.malha_br,
+                args.tudo, args.verificar]):
         p.print_help()
         return 1
+
+    if args.verificar:
+        return verificar_tudo(logging_setup.setup("verificar"))
 
     log = logging_setup.setup("download")
     paths.ensure()

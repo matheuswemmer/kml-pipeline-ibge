@@ -146,8 +146,26 @@ python scripts/01_download.py --tabelas
 ```
 
 Os arquivos caem em `data/raw/` com o nome original do IBGE e são registrados
-com sha256 em `data/raw/manifest.json`. Re-executar não rebaixa o que já está
-íntegro.
+em `data/raw/manifest.json`. Re-executar não rebaixa o que já está íntegro.
+
+### Procedência
+
+O manifesto registra o grau de conferência de cada arquivo, não quem o colocou
+ali — essa informação não é recuperável, e um rótulo errado é pior que nenhum:
+
+| `conferencia` | Significa |
+|---|---|
+| `nao_conferido` | está em disco, nada foi comparado |
+| `tamanho` | o byte count bate com o `content-length` do servidor |
+| `sha256` | rebaixamos e o hash é idêntico ao do IBGE |
+
+Só `sha256` é prova. Para elevar tudo que está em disco a esse nível:
+
+```bash
+python scripts/01_download.py --verificar
+```
+
+Uma conferência já registrada nunca é rebaixada por uma execução mais fraca.
 
 Volume total das fontes: **~2,0 GB** (dos quais 1,5 GB é o GeoPackage do Brasil,
 opcional — dá para trabalhar UF a UF).
