@@ -2,6 +2,7 @@
 data/
 output/
 logs/
+publicacao/
 
 # Artefatos soltos herdados de execuções antigas
 *.kml
