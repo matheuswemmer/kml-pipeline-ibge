@@ -31,8 +31,17 @@ CONTEXTO = [
 
 # Texto do campo COBERTURA_IBGE, em português leigo: quem abre o arquivo não
 # precisa saber o que é "bloco de entorno" para entender por que faltam dados.
+#
+# A distinção entre rural e urbano aqui não é detalhe. A pesquisa de entorno
+# do Censo 2022 é urbana: cobre 96% dos setores urbanos do Maranhão e 0,6% dos
+# rurais (em SC, 92% e 1,8%). Ausência em setor rural é o comportamento normal
+# da pesquisa, não lacuna — dizer "não pesquisou" sugeriria falha e levaria o
+# leitor a desconfiar do dado em vez de entendê-lo.
 COBERTURA_COMPLETA = "Dados completos"
-COBERTURA_SEM_ENTORNO = "IBGE não pesquisou a rua deste setor"
+COBERTURA_RURAL = (
+    "Setor rural — o IBGE só pesquisa infraestrutura de rua em área urbana"
+)
+COBERTURA_SEM_ENTORNO = "IBGE não divulgou a pesquisa de rua deste setor"
 COBERTURA_VAZIA = "IBGE não divulgou dados deste setor"
 COBERTURA_PARCIAL = "Dados parciais do IBGE"
 
@@ -187,10 +196,13 @@ def marcar_cobertura(dados: gpd.GeoDataFrame, colunas: list[str],
         if entorno and outros else pd.Series(False, index=dados.index)
     )
 
+    rural = dados.get("SITUACAO", pd.Series("", index=dados.index)).eq("Rural")
+
     dados = dados.copy()
     dados["COBERTURA_IBGE"] = COBERTURA_PARCIAL
     dados.loc[nada_nulo, "COBERTURA_IBGE"] = COBERTURA_COMPLETA
-    dados.loc[so_entorno_nulo, "COBERTURA_IBGE"] = COBERTURA_SEM_ENTORNO
+    dados.loc[so_entorno_nulo & ~rural, "COBERTURA_IBGE"] = COBERTURA_SEM_ENTORNO
+    dados.loc[so_entorno_nulo & rural, "COBERTURA_IBGE"] = COBERTURA_RURAL
     dados.loc[tudo_nulo, "COBERTURA_IBGE"] = COBERTURA_VAZIA
     return dados
 
