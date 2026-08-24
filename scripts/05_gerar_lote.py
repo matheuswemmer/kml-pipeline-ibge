@@ -61,7 +61,11 @@ def main() -> int:
     de_entorno = {ind.nome for ind in ind_cfg.INDICADORES
                   if ind.tabela == "entorno_domicilios"}
 
+    # Rótulo legível e tipo de cada indicador, para o balão do Google Earth.
+    rotulos = {ind.nome: (ind.rotulo, ind.tipo) for ind in ind_cfg.INDICADORES}
+
     resumo = lote.gerar_uf(sigla, prefixo, somente=somente, de_entorno=de_entorno,
+                           rotulos=rotulos,
                            refazer=args.refazer, processos=args.processos)
 
     print()

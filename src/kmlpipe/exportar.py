@@ -26,7 +26,7 @@ CRS_KML = "EPSG:4326"
 # sem consultar outra base.
 CONTEXTO = [
     "CD_SETOR", "NM_MUN", "CD_MUN", "NM_BAIRRO", "NM_DIST",
-    "SITUACAO", "AREA_KM2", "COBERTURA_IBGE",
+    "SITUACAO", "AREA_KM2", "COBERTURA_IBGE", "description",
 ]
 
 # Texto do campo COBERTURA_IBGE, em português leigo: quem abre o arquivo não
@@ -212,6 +212,61 @@ def _compactar_coordenadas(bloco: str) -> str:
     return " ".join(vertices)
 
 
+def _formatar(valor, tipo: str) -> str:
+    """Número no formato brasileiro, ou um traço quando não há dado."""
+    if valor is None or pd.isna(valor):
+        return "&mdash;"
+    if tipo == "percentual":
+        return f"{valor:,.1f}%".replace(",", "X").replace(".", ",").replace("X", ".")
+    if tipo in {"valor", "derivado"}:
+        return "R$ " + f"{valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    return f"{valor:,.0f}".replace(",", ".")
+
+
+def _rotulo_limpo(rotulo: str) -> str:
+    """Tira a unidade do rótulo: ela já aparece junto do valor."""
+    return re.sub(r"\s*\((%|R\$)\)\s*$", "", rotulo).strip()
+
+
+def montar_descricao(dados: gpd.GeoDataFrame, colunas: list[str],
+                     rotulos: dict[str, tuple[str, str]]) -> pd.Series:
+    """Tabela HTML para o balão do Google Earth.
+
+    O Google Earth não exibe `ExtendedData`/`SchemaData` de forma confiável —
+    os valores existem no arquivo mas o usuário só os enxerga abrindo o XML.
+    Por isso o próprio IBGE embute uma tabela HTML em `<description>` nos KMZ
+    dele. Aqui é a mesma solução, com rótulos legíveis em vez de códigos.
+
+    Os dados continuam em `ExtendedData` para quem lê por software; a
+    descrição é só a camada de leitura humana.
+    """
+    linhas = []
+    for _, r in dados.iterrows():
+        partes = [
+            "<table>",
+            f"<tr><th colspan='2'>Setor {r['CD_SETOR']}</th></tr>",
+            f"<tr><td>Município</td><td>{r.get('NM_MUN', '')}</td></tr>",
+        ]
+        if r.get("NM_BAIRRO"):
+            partes.append(f"<tr><td>Bairro</td><td>{r['NM_BAIRRO']}</td></tr>")
+        partes.append(
+            f"<tr><td>Situação</td><td>{r.get('SITUACAO', '')}</td></tr>"
+        )
+        for col in colunas:
+            rotulo, tipo = rotulos.get(col, (col, "percentual"))
+            partes.append(
+                f"<tr><td>{_rotulo_limpo(rotulo)}</td>"
+                f"<td>{_formatar(r[col], tipo)}</td></tr>"
+            )
+        cobertura = r.get("COBERTURA_IBGE")
+        if cobertura and cobertura != COBERTURA_COMPLETA:
+            partes.append(f"<tr><td colspan='2'><i>{cobertura}</i></td></tr>")
+        partes.append("</table>")
+        linhas.append("".join(partes))
+
+    return pd.Series(linhas, index=dados.index)
+
+
 ESTILO_ID = "setor"
 
 # Cor no formato KML: AABBGGRR, não RRGGBB. `ff0000ff` é vermelho opaco — o
@@ -282,6 +337,8 @@ def escrever(dados: gpd.GeoDataFrame, destino, colunas: list[str]) -> None:
     # diferentes para colunas igualmente numéricas. float64 uniformiza tudo em
     # `double`, sem mudar o valor exibido.
     saida[colunas] = saida[colunas].astype("float64")
+    if "description" in saida.columns:
+        saida["description"] = saida["description"].fillna("")
 
     # O LIBKML usa a coluna `Name` como <name> do Placemark, que é o rótulo
     # exibido no Google Earth.
@@ -356,7 +413,8 @@ def validar(destino, esperado: int, colunas: list[str]) -> None:
 
 def gerar_municipio(malha_mun: gpd.GeoDataFrame, indicadores: pd.DataFrame,
                     destino, colunas: list[str],
-                    de_entorno: set[str] | None = None) -> dict:
+                    de_entorno: set[str] | None = None,
+                    rotulos: dict[str, tuple[str, str]] | None = None) -> dict:
     """Escreve, enxuga e valida o arquivo de um município.
 
     Caminho único: tanto a ferramenta de município avulso quanto o lote por UF
@@ -364,6 +422,8 @@ def gerar_municipio(malha_mun: gpd.GeoDataFrame, indicadores: pd.DataFrame,
     """
     dados = juntar(malha_mun, indicadores)
     dados = marcar_cobertura(dados, colunas, de_entorno or set())
+    if rotulos:
+        dados["description"] = montar_descricao(dados, colunas, rotulos)
     escrever(dados, destino, colunas)
     if destino.suffix == ".kml":
         aplicar_estilo(destino)

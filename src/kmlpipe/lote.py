@@ -114,10 +114,10 @@ def _salvar_manifesto(sigla: str, dados: dict) -> None:
 
 def _tarefa(args):
     """Executado no worker: gera um município. Devolve (cod, stats|erro)."""
-    grupo, indicadores, destino, colunas, de_entorno = args
+    grupo, indicadores, destino, colunas, de_entorno, rotulos = args
     try:
         return destino.name, exportar.gerar_municipio(
-            grupo, indicadores, destino, colunas, de_entorno
+            grupo, indicadores, destino, colunas, de_entorno, rotulos
         ), None
     except Exception as erro:  # pragma: no cover - caminho de falha
         return destino.name, None, f"{type(erro).__name__}: {erro}"
@@ -125,6 +125,7 @@ def _tarefa(args):
 
 def gerar_uf(sigla: str, prefixo: str, *, somente: list[str] | None = None,
              de_entorno: set[str] | None = None,
+             rotulos: dict[str, tuple[str, str]] | None = None,
              refazer: bool = False, processos: int = 1) -> dict:
     """Gera os KML de todos os municípios de uma UF.
 
@@ -150,7 +151,7 @@ def gerar_uf(sigla: str, prefixo: str, *, somente: list[str] | None = None,
             pulados += 1
             continue
         pendentes.append((grupo, indicadores, destino, colunas,
-                          de_entorno or set()))
+                          de_entorno or set(), rotulos))
 
     if pulados:
         log.info("%d município(s) já gerados, pulando", pulados)
