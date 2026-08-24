@@ -104,15 +104,28 @@ def main() -> int:
         else:
             os.link(origem, alvo)  # mesmo volume: não duplica os 3,2 GB
 
-    updates, inserts = [], []
+    pares, inserts = [], []
 
     for codigo in casados:
         linha = por_codigo[codigo]
         origem = gerados[codigo]
         colocar(origem, linha["file_path"])
+        pares.append((linha["id"], origem.stat().st_size))
+
+    # Um UPDATE por linha daria 5.494 comandos — o editor SQL do Supabase não
+    # aguenta colar isso de uma vez. Em lotes de 500, com VALUES, são ~11
+    # comandos que rodam em segundos.
+    LOTE = 500
+    updates = []
+    for i in range(0, len(pares), LOTE):
+        fatia = pares[i:i + LOTE]
+        valores = ",\n  ".join(
+            f"({_sql_txt(ident)}::uuid, {tamanho})" for ident, tamanho in fatia
+        )
         updates.append(
-            f"update klm_documents set file_size = {origem.stat().st_size}, "
-            f"updated_at = now() where id = {_sql_txt(linha['id'])};"
+            "update klm_documents d set file_size = v.tamanho, updated_at = now()\n"
+            f"from (values\n  {valores}\n) as v(id, tamanho)\n"
+            "where d.id = v.id;"
         )
 
     # Os 76 municípios sem linha no banco ganham chave no mesmo padrão. O
@@ -139,7 +152,8 @@ def main() -> int:
         "-- Gerado por scripts/08_publicar.py. Revise antes de executar.\n"
         "-- Rode DEPOIS de concluir o upload: o banco passa a refletir\n"
         "-- arquivos que precisam já estar no bucket.\n\n"
-        f"-- {len(updates)} arquivos substituídos\n" + "\n".join(updates) +
+        f"-- {len(pares)} arquivos substituídos, em {len(updates)} lote(s)\n"
+        + "\n\n".join(updates) +
         f"\n\n-- {len(inserts)} municípios novos\n" + "\n".join(inserts) + "\n",
         encoding="utf-8",
     )
