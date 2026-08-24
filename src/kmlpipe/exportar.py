@@ -200,6 +200,13 @@ def escrever(dados: gpd.GeoDataFrame, destino, colunas: list[str]) -> None:
     presentes = [c for c in CONTEXTO if c in dados.columns]
     saida = dados[presentes + colunas + ["geometry"]].copy()
 
+    # O LIBKML mapeia int64 para o tipo `string` do KML, então uma contagem sem
+    # nulos (população, domicílios) sairia declarada como texto enquanto os
+    # demais indicadores saem como `double`. Quem lê o schema veria tipos
+    # diferentes para colunas igualmente numéricas. float64 uniformiza tudo em
+    # `double`, sem mudar o valor exibido.
+    saida[colunas] = saida[colunas].astype("float64")
+
     # O LIBKML usa a coluna `Name` como <name> do Placemark, que é o rótulo
     # exibido no Google Earth.
     saida.insert(0, "Name", saida["CD_SETOR"])
