@@ -212,6 +212,43 @@ def _compactar_coordenadas(bloco: str) -> str:
     return " ".join(vertices)
 
 
+ESTILO_ID = "setor"
+
+# Cor no formato KML: AABBGGRR, não RRGGBB. `ff0000ff` é vermelho opaco — o
+# mesmo contorno usado nos arquivos que já estão em produção. `fill 0` deixa o
+# polígono vazado: sem isso o Google Earth aplica o padrão dele, um branco
+# semitransparente que cobre a imagem de satélite e torna o mapa inútil.
+ESTILO = (
+    f'<Style id="{ESTILO_ID}">'
+    "<LineStyle><color>ff0000ff</color><width>1.2</width></LineStyle>"
+    "<PolyStyle><fill>0</fill><outline>1</outline></PolyStyle>"
+    "</Style>"
+)
+
+_PRIMEIRO_PLACEMARK = re.compile(r"(\s*)(<Placemark\b)")
+_NOME_PLACEMARK = re.compile(r"(<Placemark\b[^>]*>\s*<name>[^<]*</name>)")
+
+
+def aplicar_estilo(caminho) -> None:
+    """Insere um <Style> compartilhado e aponta cada Placemark para ele.
+
+    O arquivo herdado repetia o mesmo bloco de estilo em cada um dos 1.064
+    placemarks. Declarar uma vez e referenciar por `styleUrl` dá o mesmo
+    resultado visual com uma fração do tamanho.
+    """
+    texto = caminho.read_text(encoding="utf-8")
+    if f'<Style id="{ESTILO_ID}">' in texto:
+        return
+
+    texto = _PRIMEIRO_PLACEMARK.sub(
+        lambda m: f"{m.group(1)}{ESTILO}{m.group(1)}{m.group(2)}", texto, count=1,
+    )
+    texto = _NOME_PLACEMARK.sub(
+        lambda m: f"{m.group(1)}<styleUrl>#{ESTILO_ID}</styleUrl>", texto,
+    )
+    caminho.write_text(texto, encoding="utf-8")
+
+
 def enxugar_kml(caminho) -> tuple[int, int]:
     """Reescreve o KML sem a indentação do driver. Devolve (antes, depois)."""
     texto = caminho.read_text(encoding="utf-8")
@@ -298,10 +335,22 @@ def validar(destino, esperado: int, colunas: list[str]) -> None:
     # só é detectável olhando o texto. Acontecia quando o LIBKML reabria um
     # arquivo existente em vez de sobrescrever.
     if destino.suffix == ".kml":
-        schemas = destino.read_text(encoding="utf-8").count("<Schema ")
+        texto = destino.read_text(encoding="utf-8")
+        schemas = texto.count("<Schema ")
         if schemas != 1:
             raise AssertionError(
                 f"{destino.name}: {schemas} blocos <Schema>, esperado 1"
+            )
+
+        # Sem estilo, o Google Earth preenche o polígono com branco
+        # semitransparente e o mapa fica ilegível. Todo placemark precisa
+        # apontar para o estilo vazado.
+        marcas = texto.count("<Placemark ")
+        refs = texto.count(f"<styleUrl>#{ESTILO_ID}</styleUrl>")
+        if texto.count(f'<Style id="{ESTILO_ID}">') != 1 or refs != marcas:
+            raise AssertionError(
+                f"{destino.name}: estilo ausente ou incompleto "
+                f"({refs} styleUrl para {marcas} placemarks)"
             )
 
 
@@ -316,7 +365,11 @@ def gerar_municipio(malha_mun: gpd.GeoDataFrame, indicadores: pd.DataFrame,
     dados = juntar(malha_mun, indicadores)
     dados = marcar_cobertura(dados, colunas, de_entorno or set())
     escrever(dados, destino, colunas)
-    bruto, enxuto = enxugar_kml(destino) if destino.suffix == ".kml" else (0, 0)
+    if destino.suffix == ".kml":
+        aplicar_estilo(destino)
+        bruto, enxuto = enxugar_kml(destino)
+    else:
+        bruto, enxuto = 0, 0
     validar(destino, len(dados), colunas)
 
     return {
