@@ -26,8 +26,15 @@ CRS_KML = "EPSG:4326"
 # sem consultar outra base.
 CONTEXTO = [
     "CD_SETOR", "NM_MUN", "CD_MUN", "NM_BAIRRO", "NM_DIST",
-    "SITUACAO", "AREA_KM2",
+    "SITUACAO", "AREA_KM2", "COBERTURA_IBGE",
 ]
+
+# Texto do campo COBERTURA_IBGE, em português leigo: quem abre o arquivo não
+# precisa saber o que é "bloco de entorno" para entender por que faltam dados.
+COBERTURA_COMPLETA = "Dados completos"
+COBERTURA_SEM_ENTORNO = "IBGE não pesquisou a rua deste setor"
+COBERTURA_VAZIA = "IBGE não divulgou dados deste setor"
+COBERTURA_PARCIAL = "Dados parciais do IBGE"
 
 _COORDS = re.compile(r"(<coordinates>)(.*?)(</coordinates>)", re.S)
 
@@ -156,6 +163,38 @@ def juntar(malha: gpd.GeoDataFrame, indicadores: pd.DataFrame) -> gpd.GeoDataFra
     return saida
 
 
+def marcar_cobertura(dados: gpd.GeoDataFrame, colunas: list[str],
+                     de_entorno: set[str]) -> gpd.GeoDataFrame:
+    """Cria COBERTURA_IBGE, dizendo em português por que faltam valores.
+
+    Existe porque o LIBKML **omite o campo inteiro** quando o valor é nulo: no
+    Google Earth o setor não pesquisado simplesmente aparece com menos linhas
+    no balão, sem nenhuma pista do motivo. Um contador não resolveria — ele é
+    nulo justamente nesses setores e sumiria junto. Só um campo de texto
+    sempre preenchido sobrevive para explicar a ausência.
+    """
+    if not colunas:
+        return dados
+
+    nulos = dados[colunas].isna()
+    entorno = [c for c in colunas if c in de_entorno]
+    outros = [c for c in colunas if c not in de_entorno]
+
+    tudo_nulo = nulos.all(axis=1)
+    nada_nulo = ~nulos.any(axis=1)
+    so_entorno_nulo = (
+        nulos[entorno].all(axis=1) & ~nulos[outros].any(axis=1)
+        if entorno and outros else pd.Series(False, index=dados.index)
+    )
+
+    dados = dados.copy()
+    dados["COBERTURA_IBGE"] = COBERTURA_PARCIAL
+    dados.loc[nada_nulo, "COBERTURA_IBGE"] = COBERTURA_COMPLETA
+    dados.loc[so_entorno_nulo, "COBERTURA_IBGE"] = COBERTURA_SEM_ENTORNO
+    dados.loc[tudo_nulo, "COBERTURA_IBGE"] = COBERTURA_VAZIA
+    return dados
+
+
 def _compactar_coordenadas(bloco: str) -> str:
     """Um vértice por espaço, sem altitude redundante.
 
@@ -244,6 +283,17 @@ def validar(destino, esperado: int, colunas: list[str]) -> None:
     if ausentes:
         raise AssertionError(f"{destino.name}: colunas perdidas na escrita: {ausentes}")
 
+    # COBERTURA_IBGE só cumpre seu papel se estiver em TODA feição: é o único
+    # campo que sobrevive quando os indicadores são nulos, porque o LIBKML
+    # omite campo numérico vazio. Se ele próprio faltar, o setor volta a ficar
+    # sem explicação nenhuma.
+    if "COBERTURA_IBGE" in lido.columns:
+        faltando = int(lido["COBERTURA_IBGE"].isna().sum())
+        if faltando:
+            raise AssertionError(
+                f"{destino.name}: COBERTURA_IBGE vazia em {faltando} setor(es)"
+            )
+
     # Schema duplicado não altera a contagem de feições nem as colunas, então
     # só é detectável olhando o texto. Acontecia quando o LIBKML reabria um
     # arquivo existente em vez de sobrescrever.
@@ -256,13 +306,15 @@ def validar(destino, esperado: int, colunas: list[str]) -> None:
 
 
 def gerar_municipio(malha_mun: gpd.GeoDataFrame, indicadores: pd.DataFrame,
-                    destino, colunas: list[str]) -> dict:
+                    destino, colunas: list[str],
+                    de_entorno: set[str] | None = None) -> dict:
     """Escreve, enxuga e valida o arquivo de um município.
 
     Caminho único: tanto a ferramenta de município avulso quanto o lote por UF
     passam por aqui, para que não existam dois jeitos de produzir um arquivo.
     """
     dados = juntar(malha_mun, indicadores)
+    dados = marcar_cobertura(dados, colunas, de_entorno or set())
     escrever(dados, destino, colunas)
     bruto, enxuto = enxugar_kml(destino) if destino.suffix == ".kml" else (0, 0)
     validar(destino, len(dados), colunas)

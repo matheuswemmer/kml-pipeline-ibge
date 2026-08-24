@@ -55,7 +55,13 @@ def main() -> int:
     log.info("conjunto %r: %d indicadores -> %s",
              args.conjunto, len(somente), ", ".join(somente))
 
-    resumo = lote.gerar_uf(sigla, prefixo, somente=somente,
+    # Quais dos indicadores escolhidos vêm do bloco de entorno, para o campo
+    # COBERTURA_IBGE poder dizer "IBGE não pesquisou a rua" em vez de um
+    # genérico "dados parciais".
+    de_entorno = {ind.nome for ind in ind_cfg.INDICADORES
+                  if ind.tabela == "entorno_domicilios"}
+
+    resumo = lote.gerar_uf(sigla, prefixo, somente=somente, de_entorno=de_entorno,
                            refazer=args.refazer, processos=args.processos)
 
     print()
