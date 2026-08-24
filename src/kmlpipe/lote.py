@@ -42,8 +42,15 @@ def caminho_saida(sigla: str, cod_mun: str, nome_mun: str, ext: str = ".kml") ->
     return paths.OUTPUT / sigla / f"{apelido(nome_mun)}_{cod_mun}_setores_CD2022{ext}"
 
 
-def carregar_indicadores(uf_prefixo: str) -> tuple[pd.DataFrame, list[str]]:
-    """Fatia a base nacional pela UF e devolve (tabela indexada, colunas)."""
+def carregar_indicadores(uf_prefixo: str, somente: list[str] | None = None,
+                         ) -> tuple[pd.DataFrame, list[str]]:
+    """Fatia a base nacional pela UF e devolve (tabela indexada, colunas).
+
+    `somente` restringe as colunas que vão para o KML, na ordem em que foi
+    passada — é ela que define a ordem dos campos no `<Schema>`. A base
+    nacional continua guardando os 32; escolher um subconjunto não exige
+    recalcular nada.
+    """
     caminho = paths.PROCESSED / PARQUET
     if not caminho.exists():
         raise FileNotFoundError(
@@ -52,7 +59,16 @@ def carregar_indicadores(uf_prefixo: str) -> tuple[pd.DataFrame, list[str]]:
 
     base = pd.read_parquet(caminho)
     base = base[base[CHAVE].str.startswith(uf_prefixo)]
-    colunas = [c for c in base.columns if c != CHAVE]
+
+    if somente is None:
+        colunas = [c for c in base.columns if c != CHAVE]
+    else:
+        faltando = [c for c in somente if c not in base.columns]
+        if faltando:
+            raise KeyError(f"indicadores inexistentes na base: {faltando}")
+        colunas = list(somente)
+        base = base[[CHAVE] + colunas]
+
     return base.set_index(CHAVE), colunas
 
 
@@ -107,17 +123,18 @@ def _tarefa(args):
         return destino.name, None, f"{type(erro).__name__}: {erro}"
 
 
-def gerar_uf(sigla: str, prefixo: str, *,
+def gerar_uf(sigla: str, prefixo: str, *, somente: list[str] | None = None,
              refazer: bool = False, processos: int = 1) -> dict:
     """Gera os KML de todos os municípios de uma UF.
 
     `prefixo` é o código de dois dígitos da UF (ex.: "21" para MA), usado para
     fatiar a base nacional. Vem de config/sources.py, pelo chamador.
+    `somente` escolhe quais indicadores vão para o arquivo.
     """
     inicio = time.time()
 
     malha = preparar_malha(sigla)
-    indicadores, colunas = carregar_indicadores(prefixo)
+    indicadores, colunas = carregar_indicadores(prefixo, somente)
     log.info("%s: %d setores na malha, %d na base de indicadores",
              sigla, len(malha), len(indicadores))
 

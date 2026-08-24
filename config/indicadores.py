@@ -273,3 +273,28 @@ INDISPONIVEIS = {
                         "da ANEEL ou da distribuidora local.",
     "valor_do_aluguel": "Nunca foi publicado na granularidade de setor.",
 }
+
+
+# ---------------------------------------------------------------------------
+# Conjuntos nomeados de saída
+# ---------------------------------------------------------------------------
+# Os 32 indicadores continuam definidos e validados acima; um conjunto apenas
+# escolhe quais vão para o KML. Trocar de conjunto não exige recalcular a base
+# nacional, que guarda todos.
+#
+# ATENÇÃO em `essenciais`: sem `entorno_domicilios_pesquisados` não há como
+# distinguir "rua sem asfalto" de "setor não pesquisado". Dois dos seis
+# indicadores vêm do bloco de entorno, que no Maranhão cobre só 48% dos
+# setores — neles, mais da metade do estado sai vazio sem explicação no
+# próprio arquivo.
+CONJUNTOS = {
+    "todos": [ind.nome for ind in INDICADORES],
+    "essenciais": [
+        "renda_resp_per_capita_proxy",
+        "renda_resp_mediana",
+        "pct_esgoto_rede_geral",
+        "pct_via_pavimentada",
+        "pct_arborizacao_densa",
+        "pct_lixo_coletado",
+    ],
+}

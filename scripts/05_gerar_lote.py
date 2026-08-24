@@ -20,6 +20,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, str(ROOT / "config"))
 
+import indicadores as ind_cfg  # noqa: E402
 import sources  # noqa: E402
 from kmlpipe import download, logging_setup, lote, paths  # noqa: E402
 
@@ -31,6 +32,8 @@ def main() -> int:
                    help="processos paralelos (padrão 1)")
     p.add_argument("--refazer", action="store_true",
                    help="regerar mesmo os municípios já no manifesto")
+    p.add_argument("--conjunto", default="todos", choices=sorted(ind_cfg.CONJUNTOS),
+                   help="quais indicadores vão para o KML (padrão: todos)")
     args = p.parse_args()
 
     log = logging_setup.setup("lote")
@@ -48,11 +51,16 @@ def main() -> int:
         log.info("malha de %s ausente, baixando", sigla)
         download.baixar(sources.malha_gpkg_uf(sigla), gpkg)
 
-    resumo = lote.gerar_uf(sigla, prefixo,
+    somente = ind_cfg.CONJUNTOS[args.conjunto]
+    log.info("conjunto %r: %d indicadores -> %s",
+             args.conjunto, len(somente), ", ".join(somente))
+
+    resumo = lote.gerar_uf(sigla, prefixo, somente=somente,
                            refazer=args.refazer, processos=args.processos)
 
     print()
     print(f"UF                    {resumo['uf']}")
+    print(f"conjunto              {args.conjunto} ({len(somente)} indicadores)")
     print(f"municípios gerados    {resumo['municipios']}")
     print(f"setores na malha      {resumo['setores_na_malha']}")
     print(f"setores nos arquivos  {resumo['setores_nos_arquivos']}")

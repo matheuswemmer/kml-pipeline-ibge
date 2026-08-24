@@ -30,6 +30,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, str(ROOT / "config"))
 
+import indicadores as ind_cfg  # noqa: E402
 import sources  # noqa: E402
 from kmlpipe import logging_setup, lote, paths  # noqa: E402
 
@@ -39,6 +40,8 @@ TOLERANCIA = 0.01  # os KML guardam texto; comparar float com folga de 1 centavo
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--uf", required=True)
+    p.add_argument("--conjunto", default="todos", choices=sorted(ind_cfg.CONJUNTOS),
+                   help="conjunto usado na geração (padrão: todos)")
     args = p.parse_args()
 
     log = logging_setup.setup("validar")
@@ -56,7 +59,8 @@ def main() -> int:
         return 1
 
     malha = lote.preparar_malha(sigla)
-    base, colunas = lote.carregar_indicadores(prefixo)
+    base, colunas = lote.carregar_indicadores(
+        prefixo, ind_cfg.CONJUNTOS[args.conjunto])
     log.info("lendo %d arquivo(s) de %s", len(arquivos), sigla)
 
     partes = []
