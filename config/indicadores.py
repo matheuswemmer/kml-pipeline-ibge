@@ -292,6 +292,10 @@ CONJUNTOS = {
     "essenciais": [
         "renda_resp_per_capita_proxy",
         "renda_resp_mediana",
+        # É o V06004 do IBGE, sem cálculo intermediário — e é o mesmo número
+        # que os arquivos herdados guardavam sozinho no <description>.
+        # Mantê-lo permite conferir a base nova contra a antiga setor a setor.
+        "renda_resp_media",
         "pct_esgoto_rede_geral",
         "pct_via_pavimentada",
         "pct_arborizacao_densa",
