@@ -91,9 +91,16 @@ def carregar(indicadores, tabelas: dict, cabecalhos: dict,
     """Lê todas as tabelas necessárias e devolve um DataFrame por setor."""
     por_tabela: dict[str, set[str]] = {}
     for ind in indicadores:
-        alvo = por_tabela.setdefault(ind.tabela, set())
-        alvo.update(v.upper() for v in ind.numerador)
-        alvo.update(v.upper() for v in ind.denominador)
+        por_tabela.setdefault(ind.tabela, set()).update(
+            v.upper() for v in ind.numerador
+        )
+        # O denominador pode vir de outra tabela: os percentuais de domicílio
+        # usam V00001 (total), publicado em `domicilio1`, enquanto as
+        # categorias estão em `domicilio2`.
+        tabela_den = getattr(ind, "tabela_denominador", None) or ind.tabela
+        por_tabela.setdefault(tabela_den, set()).update(
+            v.upper() for v in ind.denominador
+        )
 
     partes = []
     for nome, variaveis in por_tabela.items():

@@ -45,9 +45,9 @@ ou trate esse campo como valor numérico vai falhar.
       <SimpleData name="renda_resp_per_capita_proxy">1425.36</SimpleData>
       <SimpleData name="renda_resp_mediana">2000</SimpleData>
       <SimpleData name="renda_resp_media">3547.21</SimpleData>
-      <SimpleData name="pct_esgoto_rede_geral">100</SimpleData>
+      <SimpleData name="pct_esgoto_rede_geral">97.73</SimpleData>
       <SimpleData name="pct_via_pavimentada">100</SimpleData>
-      <SimpleData name="pct_arborizacao_densa">30.7</SimpleData>
+      <SimpleData name="pct_arborizacao_densa">30.68</SimpleData>
       <SimpleData name="pct_lixo_coletado">100</SimpleData>
     </SchemaData>
   </ExtendedData>
@@ -97,6 +97,11 @@ Indicadores, todos numéricos com ponto decimal:
 Os `pct_*` são **percentuais de domicílios**, não de área nem de extensão de
 rua. `pct_via_pavimentada` em 60 significa que 60% dos domicílios daquele setor
 ficam em rua asfaltada.
+
+Os percentuais de saneamento (`pct_esgoto_rede_geral`, `pct_lixo_coletado`)
+podem ser um piso, não um valor exato: o IBGE oculta contagens pequenas por
+sigilo, e o que está oculto não entra no numerador. A diferença é tipicamente
+inferior a 1 ponto percentual.
 
 ## Campo ausente não é campo vazio
 
@@ -169,7 +174,7 @@ Baixe o arquivo de Itaparica (BA) e verifique que a tela mostra, para o setor
 - Renda média R$ 3.547,21
 - Renda mediana R$ 2.000,00
 - Renda per capita estimada R$ 1.425,36
-- Esgoto em rede geral 100%
+- Esgoto em rede geral 97,73%
 - Via pavimentada 100%
 - Arborização densa 30,68% — o valor no `ExtendedData` é `30.68`
 - Coleta de lixo 100%

@@ -38,6 +38,10 @@ class Indicador:
     #                   publicada à parte (ex.: V0003, V01006).
     # A validação só exige numerador ⊆ denominador no primeiro caso.
     base: str = "categorias"
+    # Tabela de onde vem o denominador, quando não é a mesma do numerador.
+    # Usado para V00001 (total de domicílios), que está em `domicilio1`
+    # enquanto as categorias estão em `domicilio2`.
+    tabela_denominador: str | None = None
 
 
 def _faixa(inicio: str, fim: str) -> list[str]:
@@ -124,6 +128,15 @@ ENTORNO = [
 # ---------------------------------------------------------------------------
 # Saneamento — presença ou ausência de rede move preço de forma direta
 # ---------------------------------------------------------------------------
+# Estes quatro blocos são exaustivos: conferido que somam exatamente V00001
+# (total de domicílios) nos setores sem supressão — 204.414 no caso do esgoto,
+# resíduo zero em todos. Por isso o denominador é V00001 e não a soma do
+# bloco: o IBGE suprime células por sigilo (54,6% dos setores no esgoto), e
+# somar o bloco trataria cada `X` como zero, encolhendo o denominador e
+# superestimando o percentual.
+#
+# As faixas seguem declaradas porque descrevem o bloco, mesmo não sendo mais
+# usadas como denominador.
 _AGUA = _faixa("V00111", "V00118")
 _ESGOTO = _faixa("V00309", "V00316")
 _LIXO = _faixa("V00397", "V00402")
@@ -131,34 +144,34 @@ _BANHEIRO = _faixa("V00232", "V00238")
 
 SANEAMENTO = [
     Indicador("pct_agua_rede_geral", "Água de rede geral (%)",
-              "domicilio2", "percentual", "valoriza", ["V00111"], _AGUA),
+              "domicilio2", "percentual", "valoriza", ["V00111"], ["V00001"], base="total", tabela_denominador="domicilio1"),
     Indicador("pct_agua_encanada_interna", "Água encanada dentro do domicílio (%)",
               "domicilio2", "percentual", "valoriza",
-              ["V00199"], ["V00199", "V00200", "V00201"]),
+              ["V00199"], ["V00001"], base="total", tabela_denominador="domicilio1"),
     Indicador("pct_esgoto_rede_geral", "Esgoto em rede geral (%)",
               "domicilio2", "percentual", "valoriza",
-              ["V00309", "V00310"], _ESGOTO,
+              ["V00309", "V00310"], ["V00001"], base="total", tabela_denominador="domicilio1",
               nota="Inclui fossa séptica ligada à rede (V00310), que a "
                    "engenharia sanitária trata como solução adequada."),
     Indicador("pct_esgoto_inadequado", "Esgoto inadequado (%)",
               "domicilio2", "percentual", "deprecia",
-              ["V00312", "V00313", "V00314", "V00316"], _ESGOTO,
+              ["V00312", "V00313", "V00314", "V00316"], ["V00001"], base="total", tabela_denominador="domicilio1",
               nota="Fossa rudimentar, vala, lançamento em corpo hídrico e "
                    "ausência de banheiro. Esgoto a céu aberto é um dos "
                    "depreciadores mais fortes em avaliação urbana."),
     Indicador("pct_lixo_coletado", "Coleta de lixo (%)",
               "domicilio2", "percentual", "valoriza",
-              ["V00397", "V00398"], _LIXO),
+              ["V00397", "V00398"], ["V00001"], base="total", tabela_denominador="domicilio1"),
     Indicador("pct_lixo_destino_inadequado", "Lixo com destino inadequado (%)",
               "domicilio2", "percentual", "deprecia",
-              ["V00399", "V00400", "V00401"], _LIXO,
+              ["V00399", "V00400", "V00401"], ["V00001"], base="total", tabela_denominador="domicilio1",
               nota="Queimado, enterrado ou jogado em terreno baldio."),
     Indicador("pct_sem_banheiro", "Sem banheiro exclusivo (%)",
               "domicilio2", "percentual", "deprecia",
-              ["V00236", "V00237", "V00238"], _BANHEIRO),
+              ["V00236", "V00237", "V00238"], ["V00001"], base="total", tabela_denominador="domicilio1"),
     Indicador("pct_dois_ou_mais_banheiros", "Dois ou mais banheiros (%)",
               "domicilio2", "percentual", "valoriza",
-              ["V00233", "V00234", "V00235"], _BANHEIRO,
+              ["V00233", "V00234", "V00235"], ["V00001"], base="total", tabela_denominador="domicilio1",
               nota="Proxy de padrão construtivo do setor."),
 ]
 

@@ -38,13 +38,16 @@ def main() -> int:
         if ind.base not in BASES:
             erros.append(f"{ind.nome}: base inválida {ind.base!r}")
 
-        for v in list(ind.numerador) + list(ind.denominador):
+        tabela_den = ind.tabela_denominador or ind.tabela
+        alvos = ([(v, ind.tabela) for v in ind.numerador]
+                 + [(v, tabela_den) for v in ind.denominador])
+        for v, esperada in alvos:
             if v not in onde:
                 erros.append(f"{ind.nome}: variável {v} não existe no IBGE")
-            elif onde[v] != ind.tabela:
+            elif onde[v] != esperada:
                 erros.append(
                     f"{ind.nome}: {v} está em {onde[v]!r}, "
-                    f"mas o indicador declara {ind.tabela!r}"
+                    f"mas o indicador declara {esperada!r}"
                 )
 
         if ind.tipo == "percentual":
@@ -64,7 +67,9 @@ def main() -> int:
 
     usadas = {v for ind in I.INDICADORES
               for v in list(ind.numerador) + list(ind.denominador)}
-    tabelas = sorted({ind.tabela for ind in I.INDICADORES})
+    tabelas = sorted({ind.tabela for ind in I.INDICADORES}
+                     | {ind.tabela_denominador for ind in I.INDICADORES
+                        if ind.tabela_denominador})
 
     print(f"indicadores      : {len(I.INDICADORES)}")
     print(f"variáveis usadas : {len(usadas)} de {len(dic)}")

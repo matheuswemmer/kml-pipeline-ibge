@@ -136,8 +136,28 @@ arquivo carrega `COBERTURA_IBGE`, um campo de texto sempre preenchido:
 Um contador de domicílios pesquisados não resolveria: ele é nulo justamente
 nos setores que precisam da explicação, e sumiria junto.
 
-O IBGE também suprime células por sigilo estatístico, marcando-as com `X`.
-São convertidas para nulo, nunca para zero.
+### O `X` do sigilo estatístico
+
+O IBGE marca com `X` as células que poderiam identificar pessoas. São
+convertidas para nulo, nunca para zero — mas isso não basta quando o valor
+entra numa soma.
+
+Os percentuais de domicílio somavam o bloco de categorias como denominador, e
+a soma **pulava os nulos** — tratando cada `X` como zero. Como a supressão
+atinge 54,6% dos setores no bloco de esgoto, o denominador encolhia e o
+percentual saía superestimado. No pior caso, um setor com 9 domicílios e
+quatro células suprimidas exibia **100% de esgoto em rede geral** quando o
+correto era 33%: o denominador havia colapsado até igualar o numerador. Isso
+acontecia em 250 setores.
+
+A correção usa `V00001` (total de domicílios) como denominador. Conferido que
+os blocos de água, esgoto, lixo e banheiro somam **exatamente** `V00001` nos
+setores sem supressão — resíduo zero em 204.414 casos no esgoto. O bloco de
+espécie do domicílio não é exaustivo (13.221 setores divergem, porque há
+espécies além de casa, vila e apartamento) e por isso mantém a soma do bloco.
+
+Resta a supressão no **numerador**, que é irredutível: o dado está oculto na
+fonte. Nesses casos o percentual é um piso, não um valor exato.
 
 ---
 

@@ -4,7 +4,7 @@ Gerado por `scripts/02_dicionario.py` a partir de `config/indicadores.py`. **Nã
 
 **Regra de inclusão:** a variável entra se for reconhecida no mercado como fator que valoriza ou deprecia o imóvel.
 
-Resultado: **32 indicadores** derivados de **108 variáveis** do IBGE — de 1.531 disponíveis.
+Resultado: **32 indicadores** derivados de **96 variáveis** do IBGE — de 1.531 disponíveis.
 Isso reduz o download de 513 MB para **285 MB** (6 arquivos em vez de 13).
 
 Todo percentual declara denominador explícito: contagem bruta de domicílios não é comparável entre setores de tamanhos diferentes.
@@ -44,14 +44,14 @@ Todo percentual declara denominador explícito: contagem bruta de domicílios n�
 
 | Coluna no KMZ | Rótulo | Sentido | Fórmula |
 |---|---|---|---|
-| `pct_agua_rede_geral` | Água de rede geral (%) | ▲ valoriza | `V00111 / V00111…V00118` |
-| `pct_agua_encanada_interna` | Água encanada dentro do domicílio (%) | ▲ valoriza | `V00199 / V00199+V00200+V00201` |
-| `pct_esgoto_rede_geral` | Esgoto em rede geral (%) | ▲ valoriza | `V00309+V00310 / V00309…V00316` |
-| `pct_esgoto_inadequado` | Esgoto inadequado (%) | ▼ deprecia | `V00312…V00316 / V00309…V00316` |
-| `pct_lixo_coletado` | Coleta de lixo (%) | ▲ valoriza | `V00397+V00398 / V00397…V00402` |
-| `pct_lixo_destino_inadequado` | Lixo com destino inadequado (%) | ▼ deprecia | `V00399+V00400+V00401 / V00397…V00402` |
-| `pct_sem_banheiro` | Sem banheiro exclusivo (%) | ▼ deprecia | `V00236+V00237+V00238 / V00232…V00238` |
-| `pct_dois_ou_mais_banheiros` | Dois ou mais banheiros (%) | ▲ valoriza | `V00233+V00234+V00235 / V00232…V00238` |
+| `pct_agua_rede_geral` | Água de rede geral (%) | ▲ valoriza | `V00111 / V00001` |
+| `pct_agua_encanada_interna` | Água encanada dentro do domicílio (%) | ▲ valoriza | `V00199 / V00001` |
+| `pct_esgoto_rede_geral` | Esgoto em rede geral (%) | ▲ valoriza | `V00309+V00310 / V00001` |
+| `pct_esgoto_inadequado` | Esgoto inadequado (%) | ▼ deprecia | `V00312…V00316 / V00001` |
+| `pct_lixo_coletado` | Coleta de lixo (%) | ▲ valoriza | `V00397+V00398 / V00001` |
+| `pct_lixo_destino_inadequado` | Lixo com destino inadequado (%) | ▼ deprecia | `V00399+V00400+V00401 / V00001` |
+| `pct_sem_banheiro` | Sem banheiro exclusivo (%) | ▼ deprecia | `V00236+V00237+V00238 / V00001` |
+| `pct_dois_ou_mais_banheiros` | Dois ou mais banheiros (%) | ▲ valoriza | `V00233+V00234+V00235 / V00001` |
 | `pct_apartamento` | Apartamentos (%) | ● contexto | `V00100…V00104 / V00090…V00104` |
 | `pct_casa_condominio` | Casas de vila ou condomínio (%) | ▲ valoriza | `V00095…V00099 / V00090…V00104` |
 
