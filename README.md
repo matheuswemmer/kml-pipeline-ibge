@@ -29,6 +29,9 @@ Documentação gerada, nunca editada à mão:
 [indicadores curados](docs/indicadores_curados.md) ·
 [variável → origem](docs/variaveis_origem.csv)
 
+Para adaptar o front ao formato novo:
+[prompt para o Lovable](docs/prompt_lovable.md).
+
 ---
 
 ## Como rodar
