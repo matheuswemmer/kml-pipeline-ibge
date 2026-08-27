@@ -144,7 +144,8 @@ def gerar(dic: pd.DataFrame, headers: dict, tamanhos: dict[str, int]) -> str:
     return "\n".join(L)
 
 
-def gerar_curadoria(indicadores, excluidos, indisponiveis, tamanhos) -> str:
+def gerar_curadoria(indicadores, excluidos, indisponiveis, tamanhos,
+                    conjuntos=None) -> str:
     """docs/indicadores_curados.md — o subconjunto que vai para o KMZ."""
     L: list[str] = []
     add = L.append
@@ -204,6 +205,24 @@ def gerar_curadoria(indicadores, excluidos, indisponiveis, tamanhos) -> str:
             for ind in notas:
                 add(f"- **`{ind.nome}`** — {ind.nota}")
             add("")
+
+    if conjuntos:
+        add("## Conjuntos de saída")
+        add("")
+        add("Os 32 indicadores ficam sempre definidos e validados; um conjunto")
+        add("apenas escolhe quais vão para o KML. Trocar de conjunto não exige")
+        add("recalcular a base nacional, que guarda todos.")
+        add("")
+        add("| Conjunto | Indicadores | Quais |")
+        add("|---|---:|---|")
+        for nome, lista in conjuntos.items():
+            quais = ("todos os 32" if len(lista) > 10
+                     else ", ".join(f"`{c}`" for c in lista))
+            add(f"| `{nome}` | {len(lista)} | {quais} |")
+        add("")
+        add("Selecione com `--conjunto` em `scripts/05_gerar_lote.py`,")
+        add("`scripts/06_validar_uf.py` e `scripts/07_brasil.py`.")
+        add("")
 
     add("## Excluídos deliberadamente")
     add("")

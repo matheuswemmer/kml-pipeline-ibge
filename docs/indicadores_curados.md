@@ -94,6 +94,20 @@ Todo percentual declara denominador explícito: contagem bruta de domicílios n�
 - **`renda_resp_media`** — Sensível a outliers. Comparar com a mediana: divergência grande indica setor heterogêneo.
 - **`renda_resp_per_capita_proxy`** — PROXY, não renda per capita real. V06004*V06001/V06002 ignora a renda dos demais moradores e subestima o valor. O Censo 2022 não publica renda domiciliar per capita por setor.
 
+## Conjuntos de saída
+
+Os 32 indicadores ficam sempre definidos e validados; um conjunto
+apenas escolhe quais vão para o KML. Trocar de conjunto não exige
+recalcular a base nacional, que guarda todos.
+
+| Conjunto | Indicadores | Quais |
+|---|---:|---|
+| `todos` | 32 | todos os 32 |
+| `essenciais` | 7 | `renda_resp_per_capita_proxy`, `renda_resp_mediana`, `renda_resp_media`, `pct_esgoto_rede_geral`, `pct_via_pavimentada`, `pct_arborizacao_densa`, `pct_lixo_coletado` |
+
+Selecione com `--conjunto` em `scripts/05_gerar_lote.py`,
+`scripts/06_validar_uf.py` e `scripts/07_brasil.py`.
+
 ## Excluídos deliberadamente
 
 **`cor_ou_raca`** — As 95 variáveis de cor ou raça, e todas as desagregações raciais em domicilio2 e alfabetizacao, ficam fora por decisão de projeto. Usar composição racial como preditor de valor imobiliário reproduz segregação histórica na forma de preço — é o mecanismo do redlining, e num laudo vira discriminação com aparência técnica. O efeito que essas variáveis capturariam já entra pela renda e pela infraestrutura, que são as causas defensáveis. Habilitar apenas com justificativa explícita e finalidade que não seja precificação.

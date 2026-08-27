@@ -203,7 +203,8 @@ def main() -> int:
     curadoria = ROOT / "docs" / "indicadores_curados.md"
     curadoria.write_text(
         inventario.gerar_curadoria(ind_cfg.INDICADORES, ind_cfg.EXCLUIDOS,
-                                   ind_cfg.INDISPONIVEIS, tamanhos),
+                                   ind_cfg.INDISPONIVEIS, tamanhos,
+                                   ind_cfg.CONJUNTOS),
         encoding="utf-8")
     log.info("curadoria (%d indicadores) -> %s",
              len(ind_cfg.INDICADORES), curadoria)
