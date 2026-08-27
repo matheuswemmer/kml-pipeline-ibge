@@ -31,6 +31,33 @@ PUBLICACAO = ROOT / "publicacao"
 LINHA = re.compile(r"^\s*(\S+)\s+(\S+)\s+(\d+)\s+(.+?)\s*$")
 
 
+def _ler_lista(caminho: Path, log) -> str:
+    """Lê a listagem seja qual for a codificação em que ela foi gravada.
+
+    O `>` do Windows PowerShell 5.1 grava em UTF-16 LE, não em UTF-8 — o
+    arquivo começa com o BOM `FF FE` e uma leitura como UTF-8 quebra logo no
+    primeiro byte. Em vez de exigir `-Encoding utf8` no redirecionamento,
+    detectamos o BOM e decodificamos de acordo.
+    """
+    bruto = caminho.read_bytes()
+    marcas = [
+        (b"\xff\xfe", "utf-16-le"),
+        (b"\xfe\xff", "utf-16-be"),
+        (b"\xef\xbb\xbf", "utf-8-sig"),
+    ]
+    for bom, codificacao in marcas:
+        if bruto.startswith(bom):
+            log.info("listagem em %s (BOM detectado)", codificacao)
+            return bruto.decode(codificacao)
+
+    for codificacao in ("utf-8", "latin-1"):
+        try:
+            return bruto.decode(codificacao)
+        except UnicodeDecodeError:
+            continue
+    raise ValueError(f"não consegui decodificar {caminho}")
+
+
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("lista", help="saída de `aws s3 ls s3://BUCKET/ --recursive`")
@@ -51,7 +78,7 @@ def main() -> int:
     log.info("%d arquivo(s) esperados em publicacao/", len(esperado))
 
     no_bucket: dict[str, int] = {}
-    for linha in Path(args.lista).read_text(encoding="utf-8").splitlines():
+    for linha in _ler_lista(Path(args.lista), log).splitlines():
         m = LINHA.match(linha)
         if m and m.group(4).endswith(".kml"):
             no_bucket[m.group(4)] = int(m.group(3))
