@@ -73,6 +73,13 @@ Os campos `CD_AGLOM`, `CD_REGIAO`, `CD_SIT`, `CD_TIPO`, `CD_UF`, `NM_UF`,
 `Valor_rendimento_nominal_mensal` **não existem em nenhum lugar do arquivo
 novo**. Foram removidos.
 
+## O upload já foi verificado — não é o arquivo
+
+Comparei os 5.570 objetos do bucket com os arquivos gerados, um a um, por
+tamanho: **zero ausentes, zero divergentes**. Todo objeto no S3 é a versão
+nova. Também não é falha global de cache, porque **alguns municípios já exibem
+o conteúdo novo e outros não** — o problema é por arquivo.
+
 ## O que isso significa
 
 A tela está renderizando fielmente o arquivo **antigo**. Repare que
@@ -90,7 +97,9 @@ algum lugar.
 qual componente busca o KML, por qual URL, e se passa por alguma função
 intermediária. Me diga a URL exata que é chamada.
 
-**2. Se existe cache em qualquer camada.** Verifique todas:
+**2. Se existe cache em qualquer camada.** Como o comportamento varia de
+município para município, procure cache indexado por URL ou por identificador
+do documento — não um cache global da aplicação. Verifique todas:
 - cache do navegador na requisição do KML (`Cache-Control`, `ETag`)
 - `localStorage`, `sessionStorage` ou IndexedDB guardando o KML ou o resultado
   do parse
@@ -113,6 +122,11 @@ arquivo novo disponível.
 Depois de identificar a origem, faça a aplicação buscar o arquivo ignorando
 qualquer cache e me diga se `SITUACAO` passa a mostrar `Rural` em vez de `0`.
 Esse é o teste decisivo: `Rural` só existe no arquivo novo.
+
+Compare também um município que **já funciona** com um que não funciona. A
+diferença entre os dois é a pista mais direta: se os que falham são justamente
+os que foram abertos no site antes da troca dos arquivos, o cache é por URL
+visitada.
 
 ## Um ajuste que vale fazer de qualquer forma
 
