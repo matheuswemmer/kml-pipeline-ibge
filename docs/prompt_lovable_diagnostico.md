@@ -45,7 +45,7 @@ Valor Rendimento Nominal Mensal    8
 
 ## O que o arquivo no bucket contém hoje
 
-O objeto `GO/Goianira/1755882187190.kml`, no bucket `amostrando-klm`, foi
+O objeto `GO/Goianira/1755882187190.kml`, no bucket de produção, foi
 substituído. Ele tem **567.146 bytes** (o antigo tinha 499.765) e, para esse
 mesmo setor, contém:
 

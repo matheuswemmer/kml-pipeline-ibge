@@ -10,7 +10,7 @@ Chave de tudo: `CD_SETOR`, string de 15 dígitos.
 
 ## Estado
 
-Brasil inteiro gerado e validado.
+**Concluído.** Brasil inteiro gerado, validado e publicado.
 
 | Etapa | Script | Situação |
 |---|---|---|
@@ -23,6 +23,7 @@ Brasil inteiro gerado e validado.
 | Validação por UF | `06_validar_uf.py` | ✅ |
 | Brasil inteiro | `07_brasil.py` | ✅ 27 UFs em ~14 min |
 | Publicação no S3 | `08_publicar.py` | ✅ preserva os nomes em uso |
+| Conferência do bucket | `09_conferir_s3.py` | ✅ 5.570 objetos, zero divergentes |
 
 Documentação gerada, nunca editada à mão:
 [inventário de fontes](docs/inventario_fontes.md) ·
@@ -240,9 +241,10 @@ byte a byte idênticos.
 ## Publicação
 
 Os arquivos no bucket têm nomes opacos por timestamp
-(`AC/Acrelandia/1755867329246.kml`), registrados na tabela `klm_documents` do
-Supabase. Subir com os nomes do IBGE criaria 5.570 objetos ao lado dos 5.494
-existentes, e o site continuaria servindo os antigos.
+(`AC/Acrelandia/1755867329246.kml`), registrados numa tabela do Supabase que
+mapeia código do município para caminho do objeto. Subir com os nomes do IBGE
+criaria 5.570 objetos ao lado dos existentes, e o site continuaria servindo os
+antigos.
 
 `08_publicar.py` monta `publicacao/` espelhando exatamente as chaves do
 bucket — um `aws s3 sync` sobrescreve cada arquivo no lugar e **nenhum link
@@ -251,6 +253,19 @@ muda**. Usa hardlink, então não duplica os 3,26 GB.
 Ele também gera o SQL de atualização do banco, em lotes de 500 para caber no
 editor do Supabase. O script não envia nada e não escreve no banco.
 
+`09_conferir_s3.py` fecha o ciclo: compara a listagem do bucket com os
+arquivos gerados, por tamanho, e separa upload incompleto de problema de
+cache. Na publicação inicial acusou zero divergentes, o que provou que os
+arquivos antigos que o site ainda exibia vinham do CDN, não do bucket.
+
+### Cache é o problema da segunda publicação
+
+Trocar o objeto no S3 não troca o que está guardado na borda do CloudFront.
+Publique sempre com `--cache-control "no-cache"`, que manda guardar e
+**revalidar** por ETag: quando o arquivo não mudou a resposta é `304` e nada é
+rebaixado; quando mudou, o novo desce na hora. Para destravar o que já ficou
+preso, use uma invalidação `/*` na distribuição.
+
 Passo a passo operacional:
 [guia de publicação](https://claude.ai/code/artifact/4bac8ab1-ddd8-4d7e-935c-8b6fde8c21dd).
 
@@ -258,20 +273,30 @@ Passo a passo operacional:
 
 ## Estrutura
 
+Versionado — 32 arquivos, tudo texto:
+
 ```
 config/sources.py        catálogo de URLs do IBGE, verificadas
 config/indicadores.py    curadoria, conjuntos e exclusões
 src/kmlpipe/             módulos reutilizáveis
-scripts/NN_*.py          etapas numeradas
-docs/                    gerado por 02_dicionario.py
+scripts/NN_*.py          etapas numeradas, de download a conferência
+tests/                   validação das fórmulas e do enxugamento
+docs/                    gerado por 02_dicionario.py, mais os prompts do front
+```
+
+Gerado, fora do versionamento:
+
+```
 data/raw/                como veio do IBGE, nunca modificado
 data/processed/          base nacional em Parquet
 output/<UF>/             KML municipais + manifesto
-publicacao/              árvore espelhando as chaves do S3
+publicacao/              árvore espelhando as chaves do bucket
+logs/                    um arquivo por execução
 ```
 
-`data/`, `output/`, `publicacao/` e `logs/` não são versionados: são
-reproduzíveis e pesam GB.
+Nada de infraestrutura entra no repositório: nome de bucket, credencial,
+identificador de projeto e listagem do bucket ficam de fora. Os scripts pedem
+esses valores como argumento ou usam um placeholder.
 
 ---
 

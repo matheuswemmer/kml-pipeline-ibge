@@ -18,6 +18,13 @@ __pycache__/
 venv/
 .env
 
+# Listagens do bucket: inventário operacional, não faz parte do projeto
+lista_s3.txt
+reenviar.txt
+
+# Configuração local da máquina
+.claude/
+
 # Editores / SO
 .vscode/
 .idea/

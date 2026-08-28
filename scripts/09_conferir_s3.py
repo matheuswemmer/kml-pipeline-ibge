@@ -1,7 +1,7 @@
 """09 — Descobre quais arquivos do bucket ainda são a versão antiga.
 
 Uso:
-    aws s3 ls s3://amostrando-klm/ --recursive > lista_s3.txt
+    aws s3 ls s3://SEU-BUCKET/ --recursive > lista_s3.txt
     python scripts/09_conferir_s3.py lista_s3.txt
 
 Compara o tamanho de cada objeto no bucket com o do arquivo correspondente em
